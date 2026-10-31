@@ -1,0 +1,106 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-primary: #1b4332;
+  --color-primary-2: #2d6a4f;
+  --color-secondary: #6b3e26;
+  --color-secondary-2: #94512f;
+  --color-alt-mint: #f0f7f4;
+  --color-alt-sage: #52b788;
+  --color-alt-cream: #f5ede8;
+  --color-ink: #17201c;
+  --color-muted: #68736d;
+  --color-line: #dfe7e2;
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-playfair);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  background: #ffffff;
+}
+
+body {
+  margin: 0;
+  color: #17201c;
+  background: #ffffff;
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  text-rendering: optimizeLegibility;
+}
+
+a,
+button,
+input,
+select,
+textarea {
+  outline-color: #52b788;
+  outline-offset: 3px;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  color: #ffffff;
+  background: #2d6a4f;
+}
+
+.shell {
+  width: min(100% - 2rem, 76rem);
+  margin-inline: auto;
+}
+
+.display-title {
+  font-family: var(--font-playfair), Georgia, serif;
+  letter-spacing: -0.035em;
+}
+
+.noise {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.035'/%3E%3C/svg%3E");
+}
+
+.text-balance {
+  text-wrap: balance;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@keyframes ticker {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.ticker-track {
+  animation: ticker 30s linear infinite;
+}
+
+.float-card {
+  animation: float 5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

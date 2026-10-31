@@ -1,0 +1,13 @@
+[
+  {
+    "AllowedOrigins": [
+      "http://localhost:3000",
+      "https://brixer.ng",
+      "https://www.brixer.ng"
+    ],
+    "AllowedMethods": ["GET", "HEAD", "PUT"],
+    "AllowedHeaders": ["Content-Type"],
+    "ExposeHeaders": ["ETag"],
+    "MaxAgeSeconds": 3600
+  }
+]
