@@ -8,6 +8,7 @@ export const siteConfig = {
   description: "Nigeria's trusted one-stop business compliance platform.",
   email: "hello@brixer.ng",
   phone: "+234 800 000 0000",
+  officeLocation: "Office C3 MIB Plaza, Ground floor, Opposite Oando, Gwarinpa, Nigeria",
   location: "Abuja, Nigeria",
   nav: [
     { label: "Services", href: "/services" },

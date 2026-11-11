@@ -54,7 +54,10 @@ Internal staff accounts can be invited from the admin dashboard. The server-side
 ## Resend and WhatsApp
 
 - Verify `brixer.ng` in Resend and set `RESEND_FROM_EMAIL`.
-- Vercel Cron calls `/api/cron/notifications` with `CRON_SECRET`.
+- Vercel Cron calls `/api/cron/notifications` daily with `CRON_SECRET`. The schedule is `0 0 * * *` (UTC), compatible with Vercel Hobby; invocation may occur anywhere within the midnight UTC hour.
+- Administrators can also select **Send queued notifications** in the admin dashboard's Notifications section. This uses their signed-in admin session; staff and clients cannot trigger delivery.
+- Each daily or manual run attempts up to 25 due email/WhatsApp deliveries, oldest first. Additional messages wait for another run, and retry backoff still applies. Overlapping runs reserve messages before sending; interrupted reservations become available after five minutes.
+- The manual control is a no-op in demo mode and reports that no notifications were sent. Production requires `NEXT_PUBLIC_DEMO_MODE=false` and configured Supabase credentials, including the server-side service role key.
 - Leave `WHATSAPP_ENABLED=false` until a Meta Business sender number and approved templates are configured.
 
 ## Editable content

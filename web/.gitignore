@@ -10,3 +10,5 @@ test-results/
 .vercel/
 npm-debug.log*
 *.tsbuildinfo
+
+.DS_Store
