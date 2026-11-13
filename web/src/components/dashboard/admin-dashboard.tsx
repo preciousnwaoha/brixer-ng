@@ -1,49 +1,28 @@
 "use client";
-
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { Banknote, BellRing, BriefcaseBusiness, Building2, FileClock, Home, Landmark, Settings, UsersRound, WalletCards } from "lucide-react";
+import { OrderAttentionBadge } from "./client-orders";
+import { activeIssue } from "@/lib/order-status";
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { OrdersTable } from "@/components/admin/orders-table";
-import { NotificationDelivery } from "@/components/admin/notification-delivery";
-import { adminOrders } from "@/lib/demo-data";
-import { DashboardShell, type DashboardNavItem } from "./dashboard-shell";
+import { Home, Package, Banknote, Settings, BellRing } from "lucide-react";
+import { DashboardShell } from "./dashboard-shell";
 import { StatCard } from "./stat-card";
-
-const nav: DashboardNavItem[] = [
-  { label: "Overview", href: "/admin", icon: Home },
-  { label: "Orders", href: "#orders", icon: BriefcaseBusiness },
-  { label: "Clients", href: "#clients", icon: UsersRound },
-  { label: "Team", href: "#team", icon: UsersRound },
-  { label: "Operations", href: "#", icon: Settings, section: true },
-  { label: "Bank requests", href: "#banking", icon: Landmark },
-  { label: "Documents", href: "#documents", icon: FileClock },
-  { label: "Notifications", href: "#notifications", icon: BellRing },
-  { label: "Finance", href: "#", icon: Banknote, section: true },
-  { label: "Referral payouts", href: "#payouts", icon: WalletCards },
-  { label: "Revenue", href: "#revenue", icon: Banknote },
-  { label: "Settings", href: "#settings", icon: Settings }
-];
-
-async function getAdminData() { const response = await fetch("/api/dashboard/admin"); return response.ok ? response.json() : { orders: adminOrders }; }
-
+import { TeamControls } from "@/components/admin/team-controls";
+import { DeliveryHistory } from "@/components/admin/delivery-history";
+import { NotificationDelivery } from "@/components/admin/notification-delivery";
+import { PaymentsLedger } from "@/components/admin/payments-ledger";
+import { Button } from "@/components/ui/button";
+import type { DashboardData } from "@/types/operations";
+const nav = [{ label: "Overview", href: "/admin", icon: Home }, { label: "Service queue", href: "#orders", icon: Package }, { label: "Payments", href: "#payments", icon: Banknote }, { label: "Notifications", href: "#notifications", icon: BellRing }, { label: "Services and options", href: "/admin/settings", icon: Settings }];
 export function AdminDashboard() {
-  const [inviteOpen, setInviteOpen] = useState(false);
-  const [inviteResult, setInviteResult] = useState("");
-  const { data = { orders: adminOrders } } = useQuery({ queryKey: ["dashboard", "admin"], queryFn: getAdminData });
-  const invite = useMutation({ mutationFn: async (form: FormData) => { const response = await fetch("/api/admin/staff/invite", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(Object.fromEntries(form)) }); const result = await response.json(); if (!response.ok) throw new Error(result.error ?? "Unable to invite staff"); return result as { staffCode: string }; }, onSuccess: (result) => setInviteResult(`Invitation sent. Staff code: ${result.staffCode}`) });
-  const payout = useMutation({ mutationFn: async (payoutId: string) => { const response = await fetch("/api/admin/payouts/review", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ payoutId, decision: "approved" }) }); const result = await response.json(); if (!response.ok) throw new Error(result.error ?? "Unable to approve payout"); return payoutId; } });
-  return (
-    <DashboardShell title="Operations overview" subtitle="Wednesday, October 14 · Live business view" userName="Princess Nwaoha" userMeta="Administrator" initials="PN" nav={nav} action={<Button onClick={() => setInviteOpen(true)} className="hidden sm:inline-flex">Invite staff</Button>}>
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><StatCard label="Revenue this month" value="₦4.82m" detail="18.4% above last month" /><StatCard label="Open orders" value="38" detail="12 need assignment" /><StatCard label="Completed" value="126" detail="This month" /><StatCard label="Pending payouts" value="₦214k" detail="9 requests to review" /></section>
-      <section id="orders" className="mt-6 overflow-hidden rounded-2xl border border-line bg-white"><div className="flex flex-wrap items-center justify-between gap-3 border-b border-line p-5 sm:p-6"><div><h2 className="font-extrabold text-primary">Order operations</h2><p className="mt-1 text-xs text-muted">Assignment, payment, and delivery status in one queue.</p></div><div className="flex gap-2"><button className="rounded-full bg-primary px-4 py-2 text-[10px] font-extrabold text-white">All orders</button><button className="rounded-full border border-line px-4 py-2 text-[10px] font-extrabold text-muted">Needs attention</button></div></div><OrdersTable rows={data.orders} /></section>
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        <section id="payouts" className="rounded-2xl border border-line bg-white p-6"><div className="flex items-center justify-between"><h2 className="font-extrabold text-primary">Payout requests</h2><WalletCards className="size-5 text-secondary" /></div><div className="mt-5 grid gap-3">{[["demo-ada", "Ada O.", "Referral payout", "₦15,000"], ["demo-tolu", "Tolu F.", "Staff earnings", "₦74,000"], ["demo-musa", "Musa K.", "Referral payout", "₦20,000"]].map(([id, name, type, amount]) => <div key={id} className="flex items-center gap-3 rounded-xl bg-alt-mint p-3"><span className="grid size-9 place-items-center rounded-full bg-primary text-[10px] font-black text-white">{name.slice(0, 2)}</span><div className="flex-1"><p className="text-xs font-extrabold text-primary">{name}</p><p className="text-[10px] text-muted">{type}</p></div><strong className="text-xs text-secondary">{payout.data === id ? "Approved" : amount}</strong><button onClick={() => payout.mutate(id)} disabled={payout.isPending || payout.data === id} className="rounded-lg border border-primary/20 bg-white px-2 py-1 text-[9px] font-extrabold text-primary disabled:opacity-50">Approve</button></div>)}</div>{payout.error && <p className="mt-3 text-xs font-bold text-red-700">{payout.error.message}</p>}</section>
-        <section id="team" className="rounded-2xl border border-line bg-white p-6"><div className="flex items-center justify-between"><h2 className="font-extrabold text-primary">Team capacity</h2><UsersRound className="size-5 text-secondary" /></div><p className="mt-5 text-4xl font-black text-primary">8<span className="ml-2 text-sm font-bold text-muted">active staff</span></p><div className="mt-5 h-2 overflow-hidden rounded-full bg-line"><div className="h-full w-[72%] rounded-full bg-alt-sage" /></div><div className="mt-3 flex justify-between text-[10px] font-bold text-muted"><span>23 active jobs</span><span>72% capacity</span></div><Button onClick={() => setInviteOpen(true)} variant="outline" className="mt-5 w-full">Invite team member</Button></section>
-        <section id="banking" className="rounded-2xl bg-primary p-6 text-white"><div className="flex items-center justify-between"><h2 className="font-extrabold">Bank requests</h2><Building2 className="size-5 text-alt-sage" /></div><p className="mt-5 text-4xl font-black">17</p><p className="mt-1 text-xs text-white/55">Awaiting partner routing</p><div className="mt-5 grid grid-cols-2 gap-2 text-[10px] font-bold">{[["FCMB", "6"], ["Zenith", "5"], ["First Bank", "4"], ["Keystone", "2"]].map(([bank, count]) => <div key={bank} className="rounded-xl bg-white/10 p-3"><p className="text-white/55">{bank}</p><p className="mt-1 text-lg font-black text-white">{count}</p></div>)}</div></section>
-      </div>
-      <NotificationDelivery />
-      {inviteOpen && <div className="fixed inset-0 z-50 grid place-items-center bg-primary/55 p-4" onClick={() => setInviteOpen(false)}><section role="dialog" aria-modal="true" aria-labelledby="invite-title" className="w-full max-w-md rounded-[1.7rem] bg-white p-6 shadow-2xl" onClick={(event) => event.stopPropagation()}><p className="text-xs font-extrabold uppercase tracking-wider text-secondary">Team access</p><h2 id="invite-title" className="mt-2 text-2xl font-black text-primary">Invite a staff member</h2><p className="mt-2 text-sm leading-6 text-muted">They will receive a secure Supabase sign-in invitation and a staff dashboard account.</p><form className="mt-6 grid gap-4" onSubmit={(event) => { event.preventDefault(); invite.mutate(new FormData(event.currentTarget)); }}><label className="grid gap-2 text-sm font-bold text-primary">Full name<input name="fullName" required minLength={3} className="h-12 rounded-xl border border-line px-4 font-normal" placeholder="Tolu Fashola" /></label><label className="grid gap-2 text-sm font-bold text-primary">Email address<input name="email" required type="email" className="h-12 rounded-xl border border-line px-4 font-normal" placeholder="tolu@example.com" /></label>{inviteResult && <p className="rounded-xl bg-emerald-50 p-3 text-xs font-bold text-emerald-700">{inviteResult}</p>}{invite.error && <p className="rounded-xl bg-red-50 p-3 text-xs font-bold text-red-700">{invite.error.message}</p>}<div className="mt-2 grid grid-cols-2 gap-3"><Button type="button" variant="outline" onClick={() => setInviteOpen(false)}>Close</Button><Button type="submit" disabled={invite.isPending}>{invite.isPending ? "Sending…" : "Send invite"}</Button></div></form></section></div>}
-    </DashboardShell>
-  );
+  const [filter, setFilter] = useState("pending"); const [search, setSearch] = useState("");
+  const { data, error, isPending } = useQuery<DashboardData>({ queryKey: ["dashboard", "admin"], refetchInterval: 30000, queryFn: async () => { const response = await fetch("/api/dashboard/admin"); const data = await response.json(); if (!response.ok) throw new Error(data.error); return data; } });
+  const orders = data?.orders ?? []; const paidOrders = orders.filter((o) => ["paid", "deposit_paid"].includes(o.payment_state)); const name = data?.profile.full_name || "Administrator";
+  const visible = orders.filter((o) => (filter === "all" || (filter === "review" ? activeIssue(o)?.status === "submitted" : filter === "pending" ? o.stage !== "completed" && o.payment_state !== "pending" : o.stage === "completed")) && `${o.reference} ${o.customer_name} ${o.service_snapshot?.name ?? o.service_code}`.toLowerCase().includes(search.toLowerCase()));
+  return <DashboardShell title="Operations overview" subtitle="Service items, payments, and delivery." userName={name} userMeta="Administrator" initials={name.slice(0, 2).toUpperCase()} nav={nav} action={<Button href="/admin/settings" className="hidden sm:inline-flex">Manage services</Button>}>
+    {isPending && <p role="status">Loading operations…</p>}{error && <p role="alert" className="rounded-xl bg-red-50 p-4 text-red-700">{error.message}</p>}
+    {data && <><section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><StatCard label="Paid service items" value={String(paidOrders.length)} detail="Including deposits" /><StatCard label="Pending jobs" value={String(paidOrders.filter((o) => o.stage !== "completed").length)} detail="Work and client details" /><StatCard label="Completed" value={String(paidOrders.filter((o) => o.stage === "completed").length)} detail="Documents uploaded" /><StatCard label="Delivery requests" value={String(orders.flatMap((o) => o.fulfillment_requests).filter((f) => !["fulfilled", "cancelled"].includes(f.status)).length)} detail="Awaiting quote, payment, or fulfillment" /></section>
+    <section id="orders" className="mt-8 rounded-2xl border border-line bg-white p-5"><h2 className="text-xl font-extrabold text-primary">Service queue</h2><div className="mt-4 flex flex-wrap gap-3"><select aria-label="Filter service queue" value={filter} onChange={(e) => setFilter(e.target.value)} className="rounded-xl border border-line p-3"><option value="pending">Pending service items</option><option value="review">Issues awaiting review</option><option value="completed">Completed items</option><option value="all">All items and payment attempts</option></select><input aria-label="Search service items" placeholder="Search customer, reference, or service" value={search} onChange={(e) => setSearch(e.target.value)} className="min-w-48 flex-1 rounded-xl border border-line p-3" /></div><div className="mt-5 divide-y divide-line">{visible.map((order) => <article key={order.id} className="flex flex-wrap items-center gap-4 py-5"><div className="min-w-48 flex-1"><p className="font-bold text-primary">{order.service_snapshot?.name ?? order.service_code}</p><p className="mt-1 text-sm text-muted">{order.customer_name} · {order.reference}</p><p className="mt-2 text-xs capitalize">{order.stage.replaceAll("_", " ")} · {order.payment_state.replaceAll("_", " ")} · {order.assigned_staff_id ? "Assigned" : "Unassigned"}</p></div><OrderAttentionBadge order={order} /><Button href={`/admin/orders/${order.id}`}>Handle service item</Button></article>)}{!visible.length && <p className="py-5 text-sm text-muted">No matching service items.</p>}</div></section>
+    <section id="payments" className="mt-8 rounded-2xl border border-line bg-white p-5"><h2 className="mb-5 text-xl font-extrabold text-primary">All payments</h2><PaymentsLedger /></section>
+    <TeamControls /><NotificationDelivery /><DeliveryHistory /></>}
+  </DashboardShell>;
 }

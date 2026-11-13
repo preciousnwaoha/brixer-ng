@@ -15,6 +15,13 @@
   --font-display: var(--font-playfair);
 }
 
+:root {
+  --color-amber-500-ea4335: #ea4335;
+  --color-blue-400-4285f4: #4285f4;
+  --color-amber-400-fbbc05: #fbbc05;
+  --color-teal-600-34a853: #34a853;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -104,3 +111,5 @@ a {
     transition-duration: 0.01ms !important;
   }
 }
+
+[id] { scroll-margin-top: 100px; }

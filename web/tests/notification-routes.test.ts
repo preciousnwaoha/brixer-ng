@@ -17,8 +17,8 @@ vi.mock("@/lib/env", () => ({ env: mocks.env }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: mocks.createClient }));
 vi.mock("@/lib/outbox", () => ({ processOutbox: mocks.processOutbox }));
 
-import { POST } from "@/app/api/admin/notifications/process/route";
-import { GET as cron } from "@/app/api/cron/notifications/route";
+import { POST as handler } from "@/app/api/admin/notifications/process/route";
+const POST = () => handler(new Request("https://brixer.example/api/admin/notifications/process", { method: "POST" }));
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -28,7 +28,6 @@ beforeEach(() => {
   mocks.getUser.mockResolvedValue({ data: { user: { id: "admin-user" } }, error: null });
   mocks.profile.mockResolvedValue({ data: { role: "admin" }, error: null });
   mocks.processOutbox.mockResolvedValue([]);
-  vi.stubEnv("CRON_SECRET", "unit-test-cron-secret");
 });
 afterEach(() => vi.unstubAllEnvs());
 
@@ -81,7 +80,15 @@ describe("manual notification delivery", () => {
     const response = await POST();
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ processed: 0, sent: 0, unsuccessful: 0, demo: true });
-    expect(mocks.createClient).not.toHaveBeenCalled();
+    expect(mocks.createClient).toHaveBeenCalled();
+    expect(mocks.profile).toHaveBeenCalled();
+    expect(mocks.processOutbox).not.toHaveBeenCalled();
+  });
+
+  it("requires a database admin role even in preview mode", async () => {
+    mocks.env.demoMode = true;
+    mocks.profile.mockResolvedValue({ data: { role: "client" }, error: null });
+    expect((await POST()).status).toBe(403);
     expect(mocks.processOutbox).not.toHaveBeenCalled();
   });
 
@@ -93,21 +100,5 @@ describe("manual notification delivery", () => {
     expect(body).toContain("Some messages may already have been sent");
     expect(body).not.toContain("recipient@example.com");
     expect(body).not.toContain("private provider response");
-  });
-});
-
-describe("scheduled notification delivery", () => {
-  it("still requires the cron bearer secret", async () => {
-    expect((await cron(new Request("https://brixer.example/api/cron/notifications"))).status).toBe(401);
-    expect(mocks.processOutbox).not.toHaveBeenCalled();
-  });
-
-  it("uses the same worker when the cron secret is valid", async () => {
-    const results = [{ id: "delivery-1", status: "sent" }];
-    mocks.processOutbox.mockResolvedValue(results);
-    const response = await cron(new Request("https://brixer.example/api/cron/notifications", { headers: { authorization: "Bearer unit-test-cron-secret" } }));
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ processed: 1, results });
-    expect(mocks.processOutbox).toHaveBeenCalledOnce();
   });
 });

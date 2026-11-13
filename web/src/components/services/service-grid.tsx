@@ -23,7 +23,7 @@ export function ServiceGrid({ services, limit }: { services: ServiceDefinition[]
 
   return (
     <div>
-      {!limit && (
+      {(
         <div className="mb-9 flex gap-2 overflow-x-auto pb-2 hide-scrollbar" aria-label="Filter services">
           {categories.map((item) => <button key={item.value} onClick={() => setCategory(item.value)} className={`shrink-0 rounded-full border px-4 py-2 text-xs font-extrabold transition ${category === item.value ? "border-primary bg-primary text-white" : "border-line bg-white text-muted hover:border-primary/40"}`}>{item.label}</button>)}
         </div>

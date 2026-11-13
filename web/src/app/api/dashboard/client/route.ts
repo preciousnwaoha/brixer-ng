@@ -1,16 +1,13 @@
-import { NextResponse } from "next/server";
-import { services } from "@/config/services";
-import { clientOrders } from "@/lib/demo-data";
 import { env } from "@/lib/env";
-import { createClient } from "@/lib/supabase/server";
-
+import { requireUser, errorResponse } from "@/lib/access";
+import { demoDashboard, loadOrders } from "@/lib/dashboard-data";
 export async function GET() {
-  if (env.demoMode) return NextResponse.json({ orders: clientOrders });
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const { data, error } = await supabase.from("orders").select("id, reference, service_code, created_at, stage, payment_plan, total_kobo, paid_kobo").order("created_at", { ascending: false });
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-  const orders = (data ?? []).map((order) => ({ id: order.id, reference: order.reference, service: services.find((service) => service.code === order.service_code)?.name ?? order.service_code, startedAt: new Intl.DateTimeFormat("en-NG", { month: "short", day: "numeric", year: "numeric" }).format(new Date(order.created_at)), stage: order.stage, paymentPlan: order.payment_plan, totalKobo: Number(order.total_kobo), paidKobo: Number(order.paid_kobo) }));
-  return NextResponse.json({ orders });
+  if (env.demoMode) return Response.json(demoDashboard());
+  try {
+    const { supabase, user, profile } = await requireUser(["client"]);
+    const { error } = await supabase.rpc("attach_guest_orders"); if (error) throw error;
+    const [orders, options, notifications, payments, referral, ledger] = await Promise.all([loadOrders(supabase), supabase.from("service_options").select("*").eq("available", true), supabase.from("notifications").select("*").order("created_at", { ascending: false }).limit(30), supabase.from("payments").select("*").order("created_at", { ascending: false }).limit(100), supabase.from("referral_codes").select("code").eq("user_id", user.id).maybeSingle(), supabase.from("referral_ledger").select("reward_kobo").eq("referrer_id", user.id).eq("status", "available")]);
+    for (const result of [options, notifications, payments, referral, ledger]) if (result.error) throw result.error;
+    return Response.json({ profile: { ...profile, email: user.email ?? null }, orders: orders.filter((order) => ["paid", "deposit_paid"].includes(order.payment_state)), options: options.data, notifications: notifications.data, payments: payments.data, referralCode: referral.data?.code, referralBalanceKobo: (ledger.data ?? []).reduce((n, row) => n + Number(row.reward_kobo), 0) });
+  } catch (error) { return errorResponse(error); }
 }

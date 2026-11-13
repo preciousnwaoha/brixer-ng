@@ -1,14 +1,13 @@
-import { NextResponse } from "next/server";
+import { z } from "zod";
 import { env } from "@/lib/env";
-import { createClient } from "@/lib/supabase/server";
-
+import { requireUser, errorResponse, AccessError } from "@/lib/access";
 export async function POST(request: Request) {
-  const { jobId } = await request.json();
-  if (env.demoMode) return NextResponse.json({ pickedUp: jobId, demo: true });
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const { error } = await supabase.rpc("pickup_job", { p_order_reference: jobId });
-  if (error) return NextResponse.json({ error: error.message }, { status: 409 });
-  return NextResponse.json({ pickedUp: jobId });
+  try {
+    const { supabase } = await requireUser(["admin", "staff"]);
+    if (env.demoMode) throw new AccessError("Preview jobs are read-only.", 503);
+    const { jobId } = z.object({ jobId: z.string().min(1).max(120) }).parse(await request.json());
+    const { error } = await supabase.rpc("pickup_job", { p_order_reference: jobId });
+    if (error) throw new AccessError(error.message, 409);
+    return Response.json({ pickedUp: jobId });
+  } catch (error) { return errorResponse(error); }
 }

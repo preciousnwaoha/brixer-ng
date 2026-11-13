@@ -1,4 +1,4 @@
-import { GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { CopyObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { env } from "@/lib/env";
 
@@ -7,7 +7,7 @@ let client: S3Client | null = null;
 export function r2Client() {
   if (!env.r2AccountId || !env.r2AccessKey || !env.r2SecretKey) throw new Error("Cloudflare R2 is not configured.");
   if (!client) client = new S3Client({
-    region: "auto",
+    region: env.r2Region,
     endpoint: `https://${env.r2AccountId}.r2.cloudflarestorage.com`,
     credentials: { accessKeyId: env.r2AccessKey, secretAccessKey: env.r2SecretKey }
   });
@@ -15,7 +15,7 @@ export function r2Client() {
 }
 
 export function signedUploadUrl(key: string, contentType: string) {
-  return getSignedUrl(r2Client(), new PutObjectCommand({ Bucket: env.r2Bucket, Key: key, ContentType: contentType }), { expiresIn: 600 });
+  return getSignedUrl(r2Client(), new PutObjectCommand({ Bucket: env.r2Bucket, Key: key, ContentType: contentType, IfNoneMatch: "*" }), { expiresIn: 600 });
 }
 
 export function signedDownloadUrl(key: string, fileName: string) {
@@ -24,4 +24,8 @@ export function signedDownloadUrl(key: string, fileName: string) {
 
 export function headObject(key: string) {
   return r2Client().send(new HeadObjectCommand({ Bucket: env.r2Bucket, Key: key }));
+}
+
+export async function sealUpload(stagingKey: string, finalKey: string) {
+  return r2Client().send(new CopyObjectCommand({ Bucket: env.r2Bucket, Key: finalKey, CopySource: `${env.r2Bucket}/${stagingKey.split("/").map(encodeURIComponent).join("/")}` }));
 }

@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { PublicShell } from "@/components/layout/public-shell";
 import { Ticker } from "@/components/home/ticker";
 import { Hero } from "@/components/home/hero";

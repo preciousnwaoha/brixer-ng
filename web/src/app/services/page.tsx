@@ -1,12 +1,14 @@
+export const dynamic = "force-dynamic";
 import type { Metadata } from "next";
 import { PublicShell } from "@/components/layout/public-shell";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { ServiceGrid } from "@/components/services/service-grid";
-import { services } from "@/config/services";
+import { getCatalogue } from "@/lib/catalogue";
 
 export const metadata: Metadata = { title: "Business compliance services", description: "Explore CAC, trademark, tax, trade, identity and corporate banking support from Brixer." };
 
-export default function ServicesPage() {
+export default async function ServicesPage() {
+  const services = await getCatalogue();
   return (
     <PublicShell>
       <section className="noise border-b border-line bg-alt-mint py-16 sm:py-24">

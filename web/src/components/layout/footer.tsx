@@ -11,10 +11,11 @@ const columns = [
 
 export function Footer() {
   return (
-    <footer className="bg-[#121816] text-white/60">
+    <footer id="contact" className="bg-[#121816] text-white/60">
       <div className="shell grid gap-12 py-16 lg:grid-cols-[1.4fr_2fr] lg:py-20">
         <div>
           <Logo inverse />
+          <div id="office" className="mt-7"><h3 className="font-bold text-white">Our Office</h3><p className="mt-2 text-sm leading-6">{siteConfig.officeLocation}</p></div>
           <p className="mt-5 max-w-sm text-sm leading-7">{siteConfig.description} CAC registration, trademark, tax and banking support—handled in one calm, trackable place.</p>
           <a className="mt-6 inline-flex items-center gap-2 text-sm font-bold text-white" href={`mailto:${siteConfig.email}`}>{siteConfig.email}<ArrowUpRight className="size-4" /></a>
         </div>

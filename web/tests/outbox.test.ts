@@ -10,6 +10,7 @@ import { processOutbox } from "@/lib/outbox";
 interface StoredDelivery {
   id: string;
   channel: string;
+  notification_id?: string;
   destination: string;
   template_key: string;
   payload: Record<string, string>;
@@ -76,6 +77,13 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 
 describe("notification outbox", () => {
+  it("dispatches only the triggering event instead of draining unrelated messages", async () => {
+    const rows = [delivery("target", { notification_id: "event-1" }), delivery("unrelated", { notification_id: "event-2" })];
+    mocks.createAdminClient.mockReturnValue(database(rows));
+    expect(await processOutbox(["event-1"])).toEqual([{ id: "target", status: "sent" }]);
+    expect(rows[1].status).toBe("pending");
+  });
+
   it("handles an empty queue without contacting a delivery provider", async () => {
     mocks.createAdminClient.mockReturnValue(database([]));
     expect(await processOutbox()).toEqual([]);

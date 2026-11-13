@@ -26,6 +26,16 @@ describe("all Brixer payment sections", () => {
     expect(mocks.initialize).toHaveBeenCalledWith(expect.objectContaining({ amount: service.priceKobo, callbackUrl: "http://localhost:3001/payment/success", metadata: expect.objectContaining({ expectedKobo: service.priceKobo, paymentKind: "full" }) }));
   });
 
+  it("includes full-price ineligible items in a mixed half-payment checkout", async () => {
+    const response = await checkout(request("/api/checkout/initialize", { ...details, paymentPlan: "installment", items: [{ serviceCode: "LTD", quantity: 2 }, { serviceCode: "TIN", quantity: 1 }] }));
+    expect(response.status).toBe(200);
+    expect(mocks.initialize).toHaveBeenCalledWith(expect.objectContaining({ amount: 6500000 }));
+  });
+  it("requires review when a displayed price has changed", async () => {
+    const response = await checkout(request("/api/checkout/initialize", { ...details, items: [{ serviceCode: "LTD", quantity: 1 }], expectedTotalKobo: 1 }));
+    expect(response.status).toBe(409); expect(mocks.initialize).not.toHaveBeenCalled();
+  });
+
   it("charges the configured 50% deposit without logging in", async () => {
     const response = await checkout(request("/api/checkout/initialize", { ...details, serviceCode: "LTD", paymentPlan: "installment" }));
     expect(response.status).toBe(200);

@@ -1,5 +1,6 @@
 import { env } from "@/lib/env";
 import { fulfillPayment } from "@/lib/fulfillment";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyPaystack } from "@/lib/paystack";
 
 export interface PaymentConfirmation {
@@ -7,6 +8,7 @@ export interface PaymentConfirmation {
   orderReference: string;
   isBalance: boolean;
   claimAvailable: boolean;
+  isFulfillment?: boolean;
 }
 
 export async function confirmPayment(reference: string): Promise<PaymentConfirmation> {
@@ -18,9 +20,16 @@ export async function confirmPayment(reference: string): Promise<PaymentConfirma
   if (!metadata || metadata.integration !== "brixer" || metadata.expectedKobo !== payment.amount) return { ...result, state: "failed" };
   result.orderReference = metadata.orderReference ?? reference;
   result.isBalance = metadata.paymentKind === "balance";
-  if (["failed", "reversed", "cancelled"].includes(payment.status)) return { ...result, state: "failed" };
+  result.isFulfillment = metadata.paymentKind === "fulfillment";
+  if (["failed", "reversed", "cancelled"].includes(payment.status)) {
+    if (!env.demoMode && env.supabaseUrl && env.supabaseServiceKey) {
+      const { error } = await createAdminClient().from("payments").update({ status: payment.status === "reversed" ? "reversed" : "failed", provider_payload: payment }).eq("reference", reference).in("status", ["initialized", "pending"]);
+      if (error) console.error("Unable to record unsuccessful payment status.");
+    }
+    return { ...result, state: "failed" };
+  }
   if (payment.status !== "success") return result;
   if (env.demoMode && payment.domain !== "test") return { ...result, state: "failed" };
   await fulfillPayment({ reference, amount: payment.amount, currency: payment.currency, status: payment.status, providerId: payment.id, payload: payment });
-  return { ...result, state: "confirmed", claimAvailable: !result.isBalance && Boolean(env.supabaseUrl && env.supabaseServiceKey) };
+  return { ...result, state: "confirmed", claimAvailable: false };
 }

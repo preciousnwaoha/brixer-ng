@@ -1,31 +1,40 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-
-const protectedPrefixes = ["/dashboard", "/staff", "/admin"];
+import { loginPath, pathPortal } from "@/lib/auth-routing";
 
 export async function proxy(request: NextRequest) {
+  const portal = pathPortal(request.nextUrl.pathname);
+  const internal = portal === "team" || portal === "staff";
   const configured = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
-  const demo = process.env.NEXT_PUBLIC_DEMO_MODE !== "false";
-  if (!configured || demo) return NextResponse.next({ request });
+  const demo = process.env.NEXT_PUBLIC_DEMO_MODE === "true" || (process.env.NODE_ENV !== "production" && process.env.NEXT_PUBLIC_DEMO_MODE !== "false");
+  if (demo && !internal) return NextResponse.next({ request });
 
   let response = NextResponse.next({ request });
-  const supabase = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
-    cookies: {
-      getAll: () => request.cookies.getAll(),
-      setAll: (items) => {
-        items.forEach(({ name, value }) => request.cookies.set(name, value));
-        response = NextResponse.next({ request });
-        items.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
+  function loginRedirect(error?: string) {
+    const url = new URL(loginPath(portal ?? "client"), request.url);
+    url.searchParams.set("next", request.nextUrl.pathname + request.nextUrl.search);
+    if (error) url.searchParams.set("error", error);
+    const redirected = NextResponse.redirect(url);
+    response.cookies.getAll().forEach((cookie) => redirected.cookies.set(cookie));
+    return redirected;
+  }
+  if (!configured) return portal ? loginRedirect("configuration") : response;
+
+  try {
+    const supabase = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+      cookies: {
+        getAll: () => request.cookies.getAll(),
+        setAll: (items) => {
+          items.forEach(({ name, value }) => request.cookies.set(name, value));
+          response = NextResponse.next({ request });
+          items.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
+        }
       }
-    }
-  });
-  const { data: { user } } = await supabase.auth.getUser();
-  const isProtected = protectedPrefixes.some((prefix) => request.nextUrl.pathname.startsWith(prefix));
-  if (isProtected && !user) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    url.searchParams.set("next", request.nextUrl.pathname);
-    return NextResponse.redirect(url);
+    });
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (portal && (error || !user)) return loginRedirect();
+  } catch {
+    if (portal) return loginRedirect("configuration");
   }
   return response;
 }

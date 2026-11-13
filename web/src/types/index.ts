@@ -12,6 +12,7 @@ export interface ServiceFormField {
   placeholder?: string;
   help?: string;
   options?: string[];
+  allowedMimeTypes?: string[];
 }
 
 export interface ServiceDefinition {
@@ -35,7 +36,7 @@ export interface ServiceDefinition {
   formFields: ServiceFormField[];
 }
 
-export type OrderStage = "received" | "filing" | "submitted" | "processing" | "completed";
+export type OrderStage = "received" | "enter_details" | "filing" | "submitted" | "processing" | "completed";
 export type PaymentKind = "full" | "deposit" | "balance";
 export type PaymentStatus = "initialized" | "pending" | "succeeded" | "failed" | "reversed";
 

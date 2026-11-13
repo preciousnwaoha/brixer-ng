@@ -32,7 +32,7 @@ export function NotificationDelivery() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 id="notifications-title" className="flex items-center gap-2 font-extrabold text-primary"><BellRing className="size-5 text-secondary" aria-hidden="true" />Notifications</h2>
-          <p className="mt-2 max-w-xl text-sm leading-6 text-muted">Queued email and WhatsApp notifications are sent daily. Send up to 25 ready notifications now; remaining messages wait for the next run.</p>
+          <p className="mt-2 max-w-xl text-sm leading-6 text-muted">Updates are sent when payments are confirmed or the team changes a service item. Retry up to 25 ready messages here; delivery history shows messages that need attention.</p>
         </div>
         <Button onClick={() => delivery.mutate()} disabled={delivery.isPending} aria-busy={delivery.isPending}>
           {delivery.isPending ? "Sending…" : "Send queued notifications"}

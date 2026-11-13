@@ -1,0 +1,10 @@
+"use client";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { postAction } from "@/components/orders/order-actions";
+export function DeliveryHistory() {
+  const [message, setMessage] = useState("");
+  const { data, error, refetch } = useQuery<{ deliveries: { id: string; channel: string; status: string; provider_status: string | null; attempt_count: number; next_attempt_at: string; last_error: string | null }[] }>({ queryKey: ["delivery-history"], refetchInterval: 30000, queryFn: async () => { const response = await fetch("/api/admin/notifications/history"); const data = await response.json(); if (!response.ok) throw new Error(data.error); return data; } });
+  return <details className="mt-4 rounded-2xl border border-line bg-white p-5"><summary className="cursor-pointer font-bold text-primary">Notification delivery history</summary>{error && <p className="mt-4 text-red-700">{error.message}</p>}<ul className="mt-4 divide-y divide-line">{data?.deliveries.map((delivery) => <li key={delivery.id} className="py-3 text-sm"><p>{delivery.channel} · {delivery.status}{delivery.provider_status ? ` · ${delivery.provider_status}` : ""} · {delivery.attempt_count} attempts</p>{delivery.last_error && <p className="mt-1 break-words text-xs text-red-700">{delivery.last_error}</p>}{["failed", "retrying"].includes(delivery.status) && <Button className="mt-3" variant="outline" disabled={delivery.status === "retrying" && Date.parse(delivery.next_attempt_at) > Date.now()} onClick={async () => { try { await postAction("/api/admin/notifications/process", { retryId: delivery.id }); await refetch(); setMessage("Retry attempted. Check the updated delivery status."); } catch (error) { setMessage((error as Error).message); } }}>Retry this message</Button>}</li>)}</ul>{!data?.deliveries.length && <p className="mt-4 text-sm text-muted">No notification deliveries yet.</p>}{message && <p role="status" className="mt-4 text-sm">{message}</p>}</details>;
+}

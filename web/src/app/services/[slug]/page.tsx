@@ -1,24 +1,22 @@
+export const dynamic = "force-dynamic";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ArrowRight, Check, Clock3, CreditCard, ShieldCheck } from "lucide-react";
 import { PublicShell } from "@/components/layout/public-shell";
 import { Button } from "@/components/ui/button";
 import { ServiceIcon } from "@/components/ui/service-icon";
-import { getService, services } from "@/config/services";
+import { findService } from "@/lib/catalogue";
+import { ServicePurchase } from "@/components/cart/service-purchase";
 import { formatNaira } from "@/lib/utils";
 
-export function generateStaticParams() {
-  return services.map((service) => ({ slug: service.slug }));
-}
-
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
-  const service = getService((await params).slug);
+  const service = await findService((await params).slug);
   if (!service) return {};
   return { title: service.name, description: service.description };
 }
 
 export default async function ServiceDetailPage({ params }: { params: Promise<{ slug: string }> }) {
-  const service = getService((await params).slug);
+  const service = await findService((await params).slug);
   if (!service) notFound();
   const jsonLd = {
     "@context": "https://schema.org",
@@ -42,8 +40,8 @@ export default async function ServiceDetailPage({ params }: { params: Promise<{ 
           </div>
           <aside className="rounded-[1.8rem] border border-line bg-white p-7 shadow-[0_30px_80px_rgba(27,67,50,.12)] sm:p-9">
             <p className="text-xs font-extrabold uppercase tracking-wider text-muted">Service fee</p><p className="mt-2 text-4xl font-black tracking-tight text-primary">{formatNaira(service.priceKobo)}</p>
-            {service.installmentEligible && <div className="mt-5 flex gap-3 rounded-2xl bg-alt-cream p-4"><CreditCard className="mt-0.5 size-5 shrink-0 text-secondary" /><p className="text-sm leading-6 text-secondary"><strong>Flexible start:</strong> pay in full or pay 50% now and the remaining 50% at filing.</p></div>}
-            <Button href={service.available ? `/checkout/${service.slug}` : undefined} disabled={!service.available} className="mt-6 w-full">{service.available ? "Start this service" : "Coming soon"}<ArrowRight className="size-4" /></Button>
+            {service.installmentEligible && service.priceKobo >= 1_000_000 && <div className="mt-5 flex gap-3 rounded-2xl bg-alt-cream p-4"><CreditCard className="mt-0.5 size-5 shrink-0 text-secondary" /><p className="text-sm leading-6 text-secondary"><strong>Flexible start:</strong> pay in full or pay 50% now and settle the balance before downloading completed documents.</p></div>}
+            <ServicePurchase service={service} />
             <p className="mt-4 text-center text-xs text-muted">No account is required before payment.</p>
           </aside>
         </div>

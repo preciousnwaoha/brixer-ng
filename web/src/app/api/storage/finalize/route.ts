@@ -1,22 +1,29 @@
-import { NextResponse } from "next/server";
 import { z } from "zod";
-import { env } from "@/lib/env";
-import { headObject } from "@/lib/r2";
-import { createClient } from "@/lib/supabase/server";
-
-const schema = z.object({ orderId: z.uuid(), key: z.string().min(5), fileName: z.string().min(1).max(180), contentType: z.enum(["application/pdf", "image/jpeg", "image/png"]), fieldId: z.string().min(1).max(80) });
-
+import { headObject, sealUpload } from "@/lib/r2";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { authorizedOrder } from "@/lib/order-access";
+import { errorResponse, AccessError } from "@/lib/access";
+import { validateUploadField } from "@/lib/upload-access";
+import { dispatchOrderEvents } from "@/lib/events";
+const schema = z.object({ orderId: z.uuid(), uploadId: z.uuid() });
 export async function POST(request: Request) {
   try {
     const input = schema.parse(await request.json());
-    if (env.demoMode) return NextResponse.json({ stored: true, demo: true });
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user || !input.key.startsWith(`applications/${user.id}/${input.orderId}/`)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const object = await headObject(input.key);
-    if (!object.ContentLength || object.ContentLength > 10 * 1024 * 1024 || object.ContentType !== input.contentType) return NextResponse.json({ error: "Uploaded file failed validation." }, { status: 400 });
-    const { error } = await supabase.from("documents").insert({ order_id: input.orderId, owner_id: user.id, kind: "application", field_id: input.fieldId, object_key: input.key, file_name: input.fileName, content_type: input.contentType, size_bytes: object.ContentLength, etag: object.ETag?.replaceAll('"', "") });
+    const { user, order, supabase, owner, operator } = await authorizedOrder(input.orderId);
+    const admin = createAdminClient();
+    const { data: intent } = await admin.from("upload_intents").select("*").eq("id", input.uploadId).eq("order_id", input.orderId).eq("uploaded_by", user.id).single();
+    if (!intent) throw new AccessError("Upload authorization not found.", 404);
+    if (intent.finalized_at) { const { data } = await admin.from("documents").select("id").eq("object_key", `documents/${input.orderId}/${intent.id}`).single(); return Response.json({ stored: true, documentId: data?.id }); }
+    if ((intent.kind === "application" && !owner) || (intent.kind !== "application" && !operator)) throw new AccessError("Upload access denied.", 403);
+    await validateUploadField(supabase, order, { kind: intent.kind, fieldId: intent.field_id, informationRequestId: intent.information_request_id, contentType: intent.content_type });
+    if (Date.parse(intent.expires_at) < Date.now()) throw new Error("Upload authorization expired. Select the file again.");
+    const object = await headObject(intent.object_key);
+    if (object.ContentLength !== Number(intent.size_bytes) || object.ContentType !== intent.content_type) throw new Error("Uploaded file failed size or type validation.");
+    const finalKey = `documents/${input.orderId}/${intent.id}`;
+    await sealUpload(intent.object_key, finalKey);
+    const { data, error } = await admin.rpc("finalize_upload", { p_upload_id: intent.id, p_user_id: user.id, p_key: finalKey, p_etag: object.ETag ?? null });
     if (error) throw error;
-    return NextResponse.json({ stored: true });
-  } catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to finalize upload." }, { status: 400 }); }
+    await dispatchOrderEvents(input.orderId);
+    return Response.json({ stored: true, documentId: data });
+  } catch (error) { return errorResponse(error); }
 }
